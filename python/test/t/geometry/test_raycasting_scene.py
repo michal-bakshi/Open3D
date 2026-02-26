@@ -465,6 +465,19 @@ def test_sphere_wrong_occupancy():
 # --- Tests for copy constructor and copy semantics. ---
 
 
+def _make_scene_with_triangle(device):
+    """Create a RaycastingScene with a single triangle for copy tests."""
+    vertices = o3d.core.Tensor([[0, 0, 0], [1, 0, 0], [1, 1, 0]],
+                               dtype=o3d.core.float32,
+                               device=device)
+    triangles = o3d.core.Tensor([[0, 1, 2]],
+                                dtype=o3d.core.uint32,
+                                device=device)
+    scene = o3d.t.geometry.RaycastingScene(device=device)
+    scene.add_triangles(vertices, triangles)
+    return scene
+
+
 @pytest.mark.parametrize("device",
                          list_devices(enable_cuda=False, enable_sycl=True))
 def test_copy_constructor_empty_scene(device):
@@ -486,15 +499,7 @@ def test_copy_constructor_empty_scene(device):
                          list_devices(enable_cuda=False, enable_sycl=True))
 def test_copy_constructor_scene_with_geometry(device):
     """Copy of a scene with geometry yields same cast_rays and compute_* results (tests clone)."""
-    vertices = o3d.core.Tensor([[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-                               dtype=o3d.core.float32,
-                               device=device)
-    triangles = o3d.core.Tensor([[0, 1, 2]],
-                                dtype=o3d.core.uint32,
-                                device=device)
-    scene = o3d.t.geometry.RaycastingScene(device=device)
-    scene.add_triangles(vertices, triangles)
-
+    scene = _make_scene_with_triangle(device)
     scene_copy = o3d.t.geometry.RaycastingScene(scene)
 
     rays = o3d.core.Tensor(
@@ -529,14 +534,7 @@ def test_copy_constructor_scene_with_geometry(device):
                          list_devices(enable_cuda=False, enable_sycl=True))
 def test_copy_independence(device):
     """Copy is independent: adding geometry to one does not affect the other."""
-    vertices = o3d.core.Tensor([[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-                               dtype=o3d.core.float32,
-                               device=device)
-    triangles = o3d.core.Tensor([[0, 1, 2]],
-                                dtype=o3d.core.uint32,
-                                device=device)
-    scene = o3d.t.geometry.RaycastingScene(device=device)
-    scene.add_triangles(vertices, triangles)
+    scene = _make_scene_with_triangle(device)
     scene_copy = o3d.t.geometry.RaycastingScene(scene)
 
     # Add another triangle only to the copy
@@ -575,14 +573,7 @@ def test_copy_independence(device):
 def test_copy_module_deepcopy(device):
     """copy.deepcopy(scene) works and produces an independent copy."""
     import copy as copy_module
-    vertices = o3d.core.Tensor([[0, 0, 0], [1, 0, 0], [1, 1, 0]],
-                               dtype=o3d.core.float32,
-                               device=device)
-    triangles = o3d.core.Tensor([[0, 1, 2]],
-                                dtype=o3d.core.uint32,
-                                device=device)
-    scene = o3d.t.geometry.RaycastingScene(device=device)
-    scene.add_triangles(vertices, triangles)
+    scene = _make_scene_with_triangle(device)
     scene_copy = copy_module.deepcopy(scene)
 
     rays = o3d.core.Tensor(
