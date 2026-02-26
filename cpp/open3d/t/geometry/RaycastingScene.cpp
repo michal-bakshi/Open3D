@@ -841,8 +841,6 @@ struct RaycastingScene::SYCLImpl : public RaycastingScene::Impl {
         const SYCLImpl* src = this;
         SYCLImpl* dst = copy.get();
 
-        std::vector<float> host_vb;
-        std::vector<uint32_t> host_ib;
         for (size_t geom_id = 0; geom_id < geometry_ptrs_.size(); ++geom_id) {
             const size_t num_vertices = geometry_sizes_[geom_id].first;
             const size_t num_triangles = geometry_sizes_[geom_id].second;
@@ -864,23 +862,23 @@ struct RaycastingScene::SYCLImpl : public RaycastingScene::Impl {
                     geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
                     3 * sizeof(uint32_t), num_triangles);
 
-            host_vb.resize(num_vertices * 3);
-            host_ib.resize(num_triangles * 3);
-            auto event1 =
-                    src->queue_.memcpy(static_cast<void*>(host_vb.data()),
-                                       const_cast<void*>(vb_src), vb_bytes);
-            auto event2 =
-                    src->queue_.memcpy(static_cast<void*>(host_ib.data()),
-                                       const_cast<void*>(ib_src), ib_bytes);
+            float* host_vb =
+                    sycl::malloc_host<float>(num_vertices * 3, src->queue_);
+            uint32_t* host_ib =
+                    sycl::malloc_host<uint32_t>(num_triangles * 3, src->queue_);
+
+            auto event1 = src->queue_.memcpy(host_vb, vb_src, vb_bytes);
+            auto event2 = src->queue_.memcpy(host_ib, ib_src, ib_bytes);
 
             sycl::event::wait({event1, event2});
 
-            auto event3 =
-                    dst->queue_.memcpy(vertex_buffer, host_vb.data(), vb_bytes);
-            auto event4 =
-                    dst->queue_.memcpy(index_buffer, host_ib.data(), ib_bytes);
+            auto event3 = dst->queue_.memcpy(vertex_buffer, host_vb, vb_bytes);
+            auto event4 = dst->queue_.memcpy(index_buffer, host_ib, ib_bytes);
 
             sycl::event::wait({event3, event4});
+
+            sycl::free(host_vb, src->queue_);
+            sycl::free(host_ib, src->queue_);
 
             rtcSetGeometryEnableFilterFunctionFromArguments(geom, true);
             rtcCommitGeometry(geom);
