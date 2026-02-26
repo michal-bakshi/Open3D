@@ -866,8 +866,12 @@ struct RaycastingScene::SYCLImpl : public RaycastingScene::Impl {
 
             host_vb.resize(num_vertices * 3);
             host_ib.resize(num_triangles * 3);
-            auto event1 = src->queue_.memcpy(host_vb.data(), vb_src, vb_bytes);
-            auto event2 = src->queue_.memcpy(host_ib.data(), ib_src, ib_bytes);
+            auto event1 = src->queue_.memcpy(
+                    static_cast<void*>(host_vb.data()),
+                    const_cast<void*>(vb_src), vb_bytes);
+            auto event2 = src->queue_.memcpy(
+                    static_cast<void*>(host_ib.data()),
+                    const_cast<void*>(ib_src), ib_bytes);
 
             sycl::event::wait({event1, event2});
 
